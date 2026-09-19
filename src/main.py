@@ -12,6 +12,7 @@ import os
 import re
 import sys
 
+from .auth import interactive_login
 from .config import DEFAULT_INTERVAL, DEFAULT_QN, DEFAULT_WORKERS, get_cookie
 from .downloader import download_all
 from .spider import get_up_name, get_video_detail, get_video_list
@@ -49,8 +50,16 @@ def main(argv=None) -> int:
     uid = extract_uid(uid_input)
     cookie = args.cookie or get_cookie()
     if not cookie:
-        print("提示：未提供 Cookie（BILI_COOKIE / BILI_SESSDATA），"
-              "部分接口可能受限或无法获取高画质。")
+        print("未检测到登录 Cookie，尝试扫码登录（Ctrl+C 可跳过，未登录画质会受限）...")
+        try:
+            cookie = interactive_login(interval=args.interval)
+            print("登录成功！")
+        except KeyboardInterrupt:
+            print("\n已跳过登录，以未登录状态继续。")
+            cookie = ""
+        except Exception as e:  # noqa: BLE001
+            print(f"扫码登录失败: {e}，以未登录状态继续。")
+            cookie = ""
 
     session = BiliSession(cookie=cookie, interval=args.interval)
     out_dir = os.path.abspath(args.out)
