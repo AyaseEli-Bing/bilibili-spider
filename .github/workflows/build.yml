@@ -57,4 +57,4 @@ jobs:
         with:
           name: ${{ matrix.artifact }}
           path: |
-            dist/bilibili-spider/*
+            dist/*
