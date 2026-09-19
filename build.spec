@@ -3,7 +3,7 @@
 import os
 import sys
 
-project_root = os.path.dirname(os.path.abspath(SPECPATH))
+project_root = os.path.abspath(SPECPATH)  # SPECPATH 即 spec 文件所在目录，本身已是目录
 
 # 按平台选择 ffmpeg 二进制
 if sys.platform == "darwin":
