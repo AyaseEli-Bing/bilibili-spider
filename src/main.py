@@ -13,7 +13,8 @@ import re
 import sys
 
 from .auth import interactive_login
-from .config import DEFAULT_INTERVAL, DEFAULT_QN, DEFAULT_WORKERS, get_cookie
+from .config import (DEFAULT_INTERVAL, DEFAULT_QN, DEFAULT_WORKERS,
+                     REPO_URL, VERSION, get_cookie)
 from .downloader import download_all
 from .spider import get_up_name, get_video_detail, get_video_list
 from .storage import save_all
@@ -28,6 +29,24 @@ def extract_uid(raw: str) -> str:
     return m.group(1)
 
 
+ABOUT_TEXT = f"""Bilibili Spider v{VERSION}
+B 站 UP 主视频抓取与下载工具（免安装、零运行时依赖）
+
+功能：
+  · 抓取某 UP 主全部投稿的元数据（标题 / 播放 / 点赞 / 投币 / 收藏 / 弹幕 / 时长 / 发布时间）
+  · 多线程下载视频并用 ffmpeg 合并为 mp4（默认 1080P，可调）
+  · 结果导出 CSV + Excel（零依赖手写 xlsx）
+  · 免安装：内置 Python + ffmpeg，扫码登录自动获取 Cookie
+
+用法：
+  bilibili-spider <UID或主页链接> [选项]
+  bilibili-spider --about      查看本介绍
+  bilibili-spider --help       查看全部选项
+
+仓库：{REPO_URL}
+"""
+
+
 def parse_args(argv=None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="B 站 UP 主视频抓取与下载工具")
     p.add_argument("uid", nargs="?", default=None,
@@ -39,11 +58,16 @@ def parse_args(argv=None) -> argparse.Namespace:
     p.add_argument("--out", default="./output", help="输出目录（默认 ./output）")
     p.add_argument("--cookie", default="", help="完整 Cookie 串（可选，默认读 BILI_COOKIE/BILI_SESSDATA）")
     p.add_argument("--no-download", action="store_true", help="只采集元数据，不下载视频文件")
+    p.add_argument("--about", action="store_true", help="显示项目介绍")
+    p.add_argument("--version", action="version", version=f"%(prog)s {VERSION}")
     return p.parse_args(argv)
 
 
 def main(argv=None) -> int:
     args = parse_args(argv)
+    if args.about:
+        print(ABOUT_TEXT)
+        return 0
     uid_input = args.uid
     if not uid_input:
         uid_input = input("请输入 UP 主 UID 或主页链接: ").strip()
