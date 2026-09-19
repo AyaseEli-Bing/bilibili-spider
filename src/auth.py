@@ -39,28 +39,15 @@ def show_qr(url: str) -> bool:
         return False
 
 
-def poll(key: str, ua: str = DEFAULT_UA) -> tuple[int, dict]:
-    url = POLL + "?" + urllib.parse.urlencode({"qrcode_key": key})
-    data = _get(url, ua)
-    inner = data.get("data") or {}
-    # 注意：B 站新响应结构里，扫码状态在 data.code（外层 code 恒为 0 表示请求成功）
-    return inner.get("code"), inner
+def interactive_login(ua: str = DEFAULT_UA, interval: float = 2.0) -> str:
+    """交互式扫码登录，返回完整 cookie 串；失败抛异常。
 
-
-def fetch_cookie(sync_url: str, ua: str = DEFAULT_UA) -> str:
-    """访问登录同步 URL，收集并返回完整 cookie 串。"""
+    关键：扫码成功后，poll 响应通过 Set-Cookie 头返回 SESSDATA 等，
+    因此必须用带 CookieJar 的 opener 发起 poll 请求，成功后直接从 jar 取。
+    """
     jar = http.cookiejar.CookieJar()
     opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
-    req = urllib.request.Request(sync_url, headers={"User-Agent": ua})
-    try:
-        opener.open(req, timeout=20)
-    except Exception:
-        pass
-    return "; ".join(f"{c.name}={c.value}" for c in jar)
 
-
-def interactive_login(ua: str = DEFAULT_UA, interval: float = 2.0) -> str:
-    """交互式扫码登录，返回完整 cookie 串；失败抛异常。"""
     url, key = generate_qr(ua)
     print("=" * 56)
     print("未检测到登录 Cookie，请用「哔哩哔哩 App」扫码登录：")
@@ -69,7 +56,15 @@ def interactive_login(ua: str = DEFAULT_UA, interval: float = 2.0) -> str:
         print(f"（无法在终端显示二维码，请用浏览器打开以下链接扫码）:\n{url}\n")
 
     while True:
-        code, data = poll(key, ua)
+        poll_url = POLL + "?" + urllib.parse.urlencode({"qrcode_key": key})
+        req = urllib.request.Request(poll_url, headers={
+            "User-Agent": ua,
+            "Referer": "https://www.bilibili.com/",
+        })
+        with opener.open(req, timeout=20) as r:
+            data = json.loads(r.read().decode("utf-8"))
+        inner = data.get("data") or {}
+        code = inner.get("code")
         if code == 0:
             break
         if code == 86090:
@@ -83,7 +78,7 @@ def interactive_login(ua: str = DEFAULT_UA, interval: float = 2.0) -> str:
             print(f"轮询返回 code={code}，继续等待...")
         time.sleep(interval)
 
-    cookie = fetch_cookie(data.get("url") or "", ua)
+    cookie = "; ".join(f"{c.name}={c.value}" for c in jar)
     if not cookie:
         raise RuntimeError("扫码成功但未获取到 Cookie")
     return cookie
