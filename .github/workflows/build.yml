@@ -66,13 +66,22 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - uses: actions/download-artifact@v4
         with:
           path: release-artifacts
 
+      - name: Generate changelog
+        run: |
+          python3 scripts/gen_changelog.py > /tmp/release_notes.md
+          echo "----- 生成的 Release 说明 -----"
+          cat /tmp/release_notes.md
+
       - name: Create Release
         run: |
-          gh release create "${{ github.ref_name }}" release-artifacts/*/* --generate-notes
+          gh release create "${{ github.ref_name }}" release-artifacts/*/* --notes-file /tmp/release_notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
