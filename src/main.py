@@ -70,9 +70,20 @@ def main(argv=None) -> int:
         print(ABOUT_TEXT)
         return 0
     uid_input = args.uid
-    if not uid_input:
+    interactive_mode = not uid_input
+    if interactive_mode:
         uid_input = input("请输入 UP 主 UID 或主页链接: ").strip()
     uid = extract_uid(uid_input)
+
+    # 数量：命令行 --limit 优先；交互模式下未指定则询问
+    limit = args.limit
+    if not limit and interactive_mode:
+        raw = input("请输入要爬取的数量（留空或 0 = 全部）: ").strip()
+        try:
+            limit = int(raw) if raw else 0
+        except ValueError:
+            limit = 0
+
     cookie = args.cookie or get_cookie()
     if not cookie:
         print("未检测到登录 Cookie，尝试扫码登录（Ctrl+C 可跳过，未登录画质会受限）...")
@@ -97,8 +108,8 @@ def main(argv=None) -> int:
     print("==> 抓取投稿列表...")
     video_list = get_video_list(session, uid)
     total_available = len(video_list)
-    if args.limit and args.limit > 0:
-        video_list = video_list[:args.limit]
+    if limit and limit > 0:
+        video_list = video_list[:limit]
     print(f"    共 {total_available} 个视频，本次处理 {len(video_list)} 个")
     if not video_list:
         print("没有获取到视频，退出。")
