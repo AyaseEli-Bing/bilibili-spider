@@ -42,7 +42,9 @@ def show_qr(url: str) -> bool:
 def poll(key: str, ua: str = DEFAULT_UA) -> tuple[int, dict]:
     url = POLL + "?" + urllib.parse.urlencode({"qrcode_key": key})
     data = _get(url, ua)
-    return data.get("code"), data.get("data") or {}
+    inner = data.get("data") or {}
+    # 注意：B 站新响应结构里，扫码状态在 data.code（外层 code 恒为 0 表示请求成功）
+    return inner.get("code"), inner
 
 
 def fetch_cookie(sync_url: str, ua: str = DEFAULT_UA) -> str:
