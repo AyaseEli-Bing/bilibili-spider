@@ -70,6 +70,7 @@ python3 run.py 495585242 --qn 80 --workers 4 --interval 1.0 --out ./output
 | `--out` | ./output | 输出目录 |
 | `--cookie` | 空 | 完整 Cookie 串（默认读环境变量） |
 | `--no-download` | 关 | 只采集元数据，不下载视频 |
+| `--limit` | 0（全部） | 只抓取最新 N 个视频，如 `--limit 20` |
 
 > 未登录时部分接口受限、画质可能降级。高画质（1080P+）建议提供登录后的 `SESSDATA`。
 

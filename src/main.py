@@ -58,6 +58,7 @@ def parse_args(argv=None) -> argparse.Namespace:
     p.add_argument("--out", default="./output", help="输出目录（默认 ./output）")
     p.add_argument("--cookie", default="", help="完整 Cookie 串（可选，默认读 BILI_COOKIE/BILI_SESSDATA）")
     p.add_argument("--no-download", action="store_true", help="只采集元数据，不下载视频文件")
+    p.add_argument("--limit", type=int, default=0, help="只抓取最新 N 个视频（默认 0 = 全部）")
     p.add_argument("--about", action="store_true", help="显示项目介绍")
     p.add_argument("--version", action="version", version=f"%(prog)s {VERSION}")
     return p.parse_args(argv)
@@ -95,7 +96,10 @@ def main(argv=None) -> int:
 
     print("==> 抓取投稿列表...")
     video_list = get_video_list(session, uid)
-    print(f"    共 {len(video_list)} 个视频")
+    total_available = len(video_list)
+    if args.limit and args.limit > 0:
+        video_list = video_list[:args.limit]
+    print(f"    共 {total_available} 个视频，本次处理 {len(video_list)} 个")
     if not video_list:
         print("没有获取到视频，退出。")
         return 0
