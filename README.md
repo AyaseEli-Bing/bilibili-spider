@@ -15,6 +15,20 @@ BV号、标题、UP主、发布时间、时长、播放、弹幕、点赞、投�
 
 ---
 
+## 获取 Cookie（扫码登录）
+
+不想手动从浏览器复制 Cookie？用内置的扫码登录脚本，App 扫码后自动提取 SESSDATA：
+
+```bash
+pip install qrcode            # 仅此脚本需要（终端画二维码用），主程序零依赖
+python3 get_cookie.py         # 终端扫码，打印 Cookie
+python3 get_cookie.py --save .env
+```
+
+扫码成功后脚本会打印 `export BILI_COOKIE="..."`，复制到终端执行即可。
+
+---
+
 ## 使用方式
 
 ### 方式一：源码运行（需要本机有 Python 3.10+，ffmpeg 可选）
