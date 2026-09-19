@@ -1,0 +1,60 @@
+name: build
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            artifact: bilibili-spider-macos-arm64
+            ffmpeg_url: https://evermeet.cx/ffmpeg/getrelease/zip
+          - os: windows-latest
+            artifact: bilibili-spider-windows-x64
+            ffmpeg_url: https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PyInstaller
+        run: pip install pyinstaller
+
+      - name: Download ffmpeg (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p bin
+          curl -L --fail -o ffmpeg.zip "${{ matrix.ffmpeg_url }}"
+          unzip -o ffmpeg.zip -d bin/
+          chmod +x bin/ffmpeg
+          ls -lh bin/
+
+      - name: Download ffmpeg (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force bin | Out-Null
+          curl.exe -L --fail -o ffmpeg.zip "${{ matrix.ffmpeg_url }}"
+          Expand-Archive -Path ffmpeg.zip -DestinationPath ffmpeg_extract -Force
+          $exe = Get-ChildItem -Path ffmpeg_extract -Recurse -Filter ffmpeg.exe | Select-Object -First 1
+          Copy-Item $exe.FullName bin/ffmpeg.exe
+          Get-ChildItem bin/
+
+      - name: Build
+        run: pyinstaller build.spec
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            dist/bilibili-spider/*
