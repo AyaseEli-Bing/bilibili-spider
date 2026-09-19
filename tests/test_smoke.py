@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.utils import enc_wbi, get_mixin_key  # noqa: E402
 from src.xlsx_writer import write_xlsx  # noqa: E402
 from src.storage import save_all  # noqa: E402
+from src.stats import summarize  # noqa: E402
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_smoke")
 os.makedirs(OUT, exist_ok=True)
@@ -54,8 +55,8 @@ def test_xlsx():
 
 def test_storage():
     rows = [
-        {"BV号": "BV1xx", "标题": "标题A", "播放": 100, "本地文件": ""},
-        {"BV号": "BV2yy", "标题": "标题B", "播放": 200, "本地文件": "/tmp/a.mp4"},
+        {"BV号": "BV1xx", "标题": "标题A", "播放": 100},
+        {"BV号": "BV2yy", "标题": "标题B", "播放": 200},
     ]
     csv_path, xlsx_path = save_all(OUT, rows)
     assert os.path.exists(csv_path) and os.path.exists(xlsx_path)
@@ -65,9 +66,24 @@ def test_storage():
     print(f"  [storage] OK -> CSV {os.path.getsize(csv_path)}B / xlsx {os.path.getsize(xlsx_path)}B")
 
 
+def test_stats():
+    rows = [
+        {"播放": 1000, "点赞": 100, "投币": 50, "收藏": 30, "弹幕": 20,
+         "评论": 10, "分享": 5, "_duration": 300, "发布时间": "2024-01-01 10:00:00"},
+        {"播放": 5000, "点赞": 500, "投币": 200, "收藏": 150, "弹幕": 80,
+         "评论": 40, "分享": 20, "_duration": 1200, "发布时间": "2025-06-01 10:00:00"},
+    ]
+    s = summarize(rows)
+    assert s["视频总数"] == "2", "视频总数统计错误"
+    assert s["总播放量"] == "6000", "总播放量统计错误"
+    assert "总时长" in s, "缺少总时长"
+    print(f"  [stats] OK -> {s['视频总数']} 条，总播放 {s['总播放量']}，总时长 {s['总时长']}")
+
+
 if __name__ == "__main__":
     print("运行冒烟测试...")
     test_wbi()
     test_xlsx()
     test_storage()
+    test_stats()
     print("=== 全部通过 ===")

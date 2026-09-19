@@ -1,9 +1,8 @@
-"""B 站 UP 主视频抓取/下载工具 — 入口。
+"""B 站 UP 主数据量检测工具 — 入口。
 
 用法示例：
   BILI_SESSDATA=xxx python -m src.main 495585242
-  BILI_SESSDATA=xxx python -m src.main 495585242 --qn 80 --workers 4 --out ./output
-  BILI_SESSDATA=xxx python -m src.main 495585242 --no-download
+  BILI_SESSDATA=xxx python -m src.main 495585242 --limit 20 --out ./output
 """
 from __future__ import annotations
 
@@ -13,12 +12,11 @@ import re
 import sys
 
 from .auth import interactive_login
-from .config import (DEFAULT_INTERVAL, DEFAULT_QN, DEFAULT_WORKERS,
-                     REPO_URL, VERSION, get_cookie)
-from .downloader import download_all
-from .spider import get_up_name, get_video_detail, get_video_list
+from .config import DEFAULT_INTERVAL, REPO_URL, VERSION, get_cookie
+from .spider import get_up_info, get_video_detail, get_video_list
+from .stats import format_report
 from .storage import save_all
-from .utils import BiliSession, find_ffmpeg
+from .utils import BiliSession
 
 
 def extract_uid(raw: str) -> str:
@@ -30,13 +28,14 @@ def extract_uid(raw: str) -> str:
 
 
 ABOUT_TEXT = f"""Bilibili Spider v{VERSION}
-B 站 UP 主视频抓取与下载工具（免安装、零运行时依赖）
+B 站 UP 主数据量检测工具（免安装、零运行时依赖）
 
 功能：
-  · 抓取某 UP 主全部投稿的元数据（标题 / 播放 / 点赞 / 投币 / 收藏 / 弹幕 / 时长 / 发布时间）
-  · 多线程下载视频并用 ffmpeg 合并为 mp4（默认 1080P，可调）
+  · 检测某 UP 主投稿数据量（抓取前概览：粉丝数 / 投稿总数）
+  · 抓取每条视频元数据（标题 / 播放 / 点赞 / 投币 / 收藏 / 弹幕 / 时长 / 发布时间）
+  · 汇总统计：总播放 / 总点赞 / 总时长 / 平均播放 等
+  · 维度分析：时长分布、发布时间分布
   · 结果导出 CSV + Excel（零依赖手写 xlsx）
-  · 免安装：内置 Python + ffmpeg，扫码登录自动获取 Cookie
 
 用法：
   bilibili-spider <UID或主页链接> [选项]
@@ -48,17 +47,13 @@ B 站 UP 主视频抓取与下载工具（免安装、零运行时依赖）
 
 
 def parse_args(argv=None) -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="B 站 UP 主视频抓取与下载工具")
+    p = argparse.ArgumentParser(description="B 站 UP 主数据量检测工具")
     p.add_argument("uid", nargs="?", default=None,
                    help="UP 主 UID 或主页链接（如 https://space.bilibili.com/495585242），留空则交互输入")
-    p.add_argument("--qn", type=int, default=DEFAULT_QN,
-                   help=f"目标清晰度（默认 {DEFAULT_QN}=1080P；80=1080P 64=720P 32=480P 16=360P）")
-    p.add_argument("--workers", type=int, default=DEFAULT_WORKERS, help="并发下载数（默认 4）")
     p.add_argument("--interval", type=float, default=DEFAULT_INTERVAL, help="请求间隔秒（默认 1.0）")
     p.add_argument("--out", default="./output", help="输出目录（默认 ./output）")
     p.add_argument("--cookie", default="", help="完整 Cookie 串（可选，默认读 BILI_COOKIE/BILI_SESSDATA）")
-    p.add_argument("--no-download", action="store_true", help="只采集元数据，不下载视频文件")
-    p.add_argument("--limit", type=int, default=0, help="只抓取最新 N 个视频（默认 0 = 全部）")
+    p.add_argument("--limit", type=int, default=0, help="只检测最新 N 个视频（默认 0 = 全部）")
     p.add_argument("--about", action="store_true", help="显示项目介绍")
     p.add_argument("--version", action="version", version=f"%(prog)s {VERSION}")
     return p.parse_args(argv)
@@ -69,6 +64,7 @@ def main(argv=None) -> int:
     if args.about:
         print(ABOUT_TEXT)
         return 0
+
     uid_input = args.uid
     interactive_mode = not uid_input
     if interactive_mode:
@@ -78,7 +74,7 @@ def main(argv=None) -> int:
     # 数量：命令行 --limit 优先；交互模式下未指定则询问
     limit = args.limit
     if not limit and interactive_mode:
-        raw = input("请输入要爬取的数量（留空或 0 = 全部）: ").strip()
+        raw = input("请输入要检测的数量（留空或 0 = 全部）: ").strip()
         try:
             limit = int(raw) if raw else 0
         except ValueError:
@@ -86,7 +82,7 @@ def main(argv=None) -> int:
 
     cookie = args.cookie or get_cookie()
     if not cookie:
-        print("未检测到登录 Cookie，尝试扫码登录（Ctrl+C 可跳过，未登录画质会受限）...")
+        print("未检测到登录 Cookie，尝试扫码登录（Ctrl+C 可跳过，未登录可能受限）...")
         try:
             cookie = interactive_login(interval=args.interval)
             print("登录成功！")
@@ -102,7 +98,9 @@ def main(argv=None) -> int:
     os.makedirs(out_dir, exist_ok=True)
 
     print(f"==> 获取 UP 主 {uid} 信息...")
-    up_name = get_up_name(session, uid)
+    up = get_up_info(session, uid)
+    up_name = up["name"]
+    up_fans = up["fans"]
     print(f"    UP 主：{up_name}")
 
     print("==> 抓取投稿列表...")
@@ -110,7 +108,7 @@ def main(argv=None) -> int:
     total_available = len(video_list)
     if limit and limit > 0:
         video_list = video_list[:limit]
-    print(f"    共 {total_available} 个视频，本次处理 {len(video_list)} 个")
+    print(f"    投稿总数 {total_available} 个，本次检测 {len(video_list)} 个")
     if not video_list:
         print("没有获取到视频，退出。")
         return 0
@@ -128,31 +126,13 @@ def main(argv=None) -> int:
         print("没有采集到有效数据，退出。")
         return 0
 
-    if not args.no_download:
-        ffmpeg = find_ffmpeg()
-        if not ffmpeg:
-            print("警告：未找到 ffmpeg，跳过视频下载（仅保存元数据）。")
-        else:
-            print(f"==> 开始下载视频（并发 {args.workers}，目标清晰度 qn={args.qn}）...")
+    # 输出数据量检测报告
+    print()
+    print(format_report(up_name, up_fans, total_available, rows))
 
-            def on_done(bvid, upd, err):
-                if err:
-                    print(f"    [下载失败] {bvid}: {err}")
-                else:
-                    print(f"    [已下载] {bvid} -> {os.path.basename(upd['本地文件'])}")
-
-            results = download_all(session, rows, out_dir, args.qn, args.workers,
-                                   ffmpeg, on_done=on_done)
-            for r in rows:
-                res = results.get(r["BV号"], {})
-                if res.get("error"):
-                    r["本地文件"] = f"失败: {res['error']}"
-                elif res.get("本地文件"):
-                    r["本地文件"] = res["本地文件"]
-
-    # 清理内部字段
+    # 清理内部字段后导出
     for r in rows:
-        for k in ("_cid", "_duration", "_qn"):
+        for k in ("_duration",):
             r.pop(k, None)
 
     csv_path, xlsx_path = save_all(out_dir, rows)

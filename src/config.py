@@ -3,12 +3,9 @@ from __future__ import annotations
 
 import os
 
-VERSION = "1.3.3"
+VERSION = "1.4.0"
 REPO_URL = "https://github.com/AyaseEli-Bing/bilibili-spider"
 
-# 默认清晰度 qn：80 = 1080P
-DEFAULT_QN = 80
-DEFAULT_WORKERS = 4
 DEFAULT_INTERVAL = 1.0
 
 

@@ -27,12 +27,16 @@ def _fmt_duration(sec) -> str:
     return f"{h}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
 
 
-def get_up_name(session: BiliSession, uid: str) -> str:
+def get_up_info(session: BiliSession, uid: str) -> dict:
+    """获取 UP 主概览信息（名称、粉丝数）。"""
     data = session.request_json(
         "https://api.bilibili.com/x/web-interface/card", params={"mid": uid}
     )
     card = data.get("data", {}).get("card", {})
-    return card.get("name", str(uid))
+    return {
+        "name": card.get("name", str(uid)),
+        "fans": card.get("fans", 0),
+    }
 
 
 def get_video_list(session: BiliSession, uid: str) -> list[dict]:
@@ -89,8 +93,6 @@ def get_video_detail(session: BiliSession, bvid: str, up_name: str) -> dict:
         "分享": stat.get("share", 0),
         "评论": stat.get("reply", 0),
         "视频链接": f"https://www.bilibili.com/video/{d['bvid']}",
-        "本地文件": "",
-        # 供下载使用（不写入表格）
-        "_cid": d.get("cid"),
+        # 内部字段（不写入表格，供统计使用）
         "_duration": d.get("duration", 0),
     }
