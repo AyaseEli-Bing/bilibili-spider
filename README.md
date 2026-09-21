@@ -1,5 +1,7 @@
 # B 站 UP 主数据量检测工具
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) ![Python](https://img.shields.io/badge/python-3.x-3776ab.svg) ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg) ![Dependencies](https://img.shields.io/badge/dependencies-0-3fb950.svg)
+
 一键检测某 UP 主的投稿数据量：抓取前概览（粉丝数 / 投稿总数）+ 逐条元数据 + 汇总统计 + 维度分布分析，结果导出 **CSV + Excel** 双格式。
 
 - **零运行时依赖**：纯 Python 标准库实现，无需安装任何第三方包。
