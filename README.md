@@ -101,6 +101,17 @@ pyinstaller build.spec --clean --noconfirm
 
 ---
 
+## 参与贡献
+
+欢迎 PR。**提 PR 前请先开 issue 或在已有 issue 下留言认领**，避免撞车。
+
+- 上手步骤、测试命令、提交规范见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+- 想挑一个开始：看带 [`good first issue`](https://github.com/AyaseEli-Bing/bilibili-spider/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+  标签的 issue，每条都写了具体文件、修改方式和验证命令。
+- 测试必须离线，不要在测试里请求 B 站真实接口。
+
+---
+
 ## 合规说明
 
 本工具仅供**个人学习、数据统计自用**。请遵守 B 站相关协议与 robots 规则，控制抓取频率。

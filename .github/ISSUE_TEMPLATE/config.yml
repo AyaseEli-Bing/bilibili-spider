@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 合规与使用限制
+    url: https://github.com/AyaseEli-Bing/bilibili-spider#readme
+    about: 本工具仅供个人学习与自用统计，请先阅读 README 的「合规说明」
