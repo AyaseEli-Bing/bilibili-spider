@@ -6,7 +6,7 @@
 ## 环境准备
 
 ```bash
-python3 -V                         # 需要 3.11+（CI 与本地都用 3.12 验证过）
+python3 -V                         # 需要 3.11+（打包 CI 用 3.12；3.11–3.14 已实测通过冒烟测试）
 pip install -r requirements-dev.txt
 pip install pytest ruff            # 目前 requirements-dev.txt 里还没有这两项
 ```
