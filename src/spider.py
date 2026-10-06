@@ -54,7 +54,7 @@ def get_video_list(session: BiliSession, uid: str) -> list[dict]:
         if data.get("code") != 0:
             raise RuntimeError(f"列表接口错误: {data.get('message')}")
         page = data["data"]["page"]
-        total = page["count"]
+        total = page.get("count")
         vlist = data["data"]["list"]["vlist"]
         if not vlist:
             break
@@ -65,10 +65,12 @@ def get_video_list(session: BiliSession, uid: str) -> list[dict]:
                 "created": v.get("created", 0),
                 "length": v.get("length", ""),
             })
-        if pn * ps >= total:
+        if total and len(items) >= total:
             break
         pn += 1
         time.sleep(0.3)  # 分页间额外缓冲
+    if total and len(items) < total:
+        print(f"警告：声明 {total} 条，实际取到 {len(items)} 条")
     return items
 
 
