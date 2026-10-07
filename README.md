@@ -87,6 +87,8 @@ python3 run.py 495585242 --interval 1.0 --out ./output
 
 > 抓取前的 UP 主概览接口若返回错误（如 cookie 失效导致“账号未登录”），程序会直接报错退出，不会继续用“粉丝数 0”生成报告。粉丝数字段为字符串或缺失时统一按 0 处理。
 
+> UID 只接受纯数字，或 `space.bilibili.com/<uid>` 形式的空间主页链接。视频链接（`bilibili.com/video/BV...`）与其他非空间链接会被拒绝并提示，避免解析出错误 UID 而抓错 UP 主。
+
 ---
 
 ## 打包
