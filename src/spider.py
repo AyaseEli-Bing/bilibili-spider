@@ -27,15 +27,33 @@ def _fmt_duration(sec) -> str:
     return f"{h}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
 
 
+def _to_int(value, default: int = 0) -> int:
+    """把接口返回的数字字段归一化为 int。
+
+    B 站的粉丝数等字段会在字符串/整数之间波动，直接透传会让下游
+    stats._fmt_num 的比较运算抛 TypeError。
+    """
+    if isinstance(value, bool):
+        return default
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return default
+    return number if number >= 0 else default
+
+
 def get_up_info(session: BiliSession, uid: str) -> dict:
     """获取 UP 主概览信息（名称、粉丝数）。"""
     data = session.request_json(
         "https://api.bilibili.com/x/web-interface/card", params={"mid": uid}
     )
-    card = data.get("data", {}).get("card", {})
+    if data.get("code") != 0:
+        raise RuntimeError(f"UP 主信息接口错误: {data.get('message')}")
+    # data 为 null 时 .get("data", {}) 会返回 None，需显式兜底
+    card = (data.get("data") or {}).get("card") or {}
     return {
-        "name": card.get("name", str(uid)),
-        "fans": card.get("fans", 0),
+        "name": card.get("name") or str(uid),
+        "fans": _to_int(card.get("fans")),
     }
 
 
