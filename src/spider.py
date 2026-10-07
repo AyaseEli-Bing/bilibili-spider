@@ -47,10 +47,15 @@ def get_up_info(session: BiliSession, uid: str) -> dict:
     data = session.request_json(
         "https://api.bilibili.com/x/web-interface/card", params={"mid": uid}
     )
-    if data.get("code") != 0:
-        raise RuntimeError(f"UP 主信息接口错误: {data.get('message')}")
-    # data 为 null 时 .get("data", {}) 会返回 None，需显式兜底
-    card = (data.get("data") or {}).get("card") or {}
+    if not isinstance(data, dict) or data.get("code") != 0:
+        message = data.get("message") if isinstance(data, dict) else "接口返回异常"
+        raise RuntimeError(f"UP 主信息接口错误: {message}")
+    payload = data.get("data")
+    if not isinstance(payload, dict):
+        payload = {}
+    card = payload.get("card")
+    if not isinstance(card, dict):
+        card = {}
     return {
         "name": card.get("name") or str(uid),
         "fans": _to_int(card.get("fans")),
@@ -69,14 +74,27 @@ def get_video_list(session: BiliSession, uid: str) -> list[dict]:
             params={"mid": uid, "pn": pn, "ps": ps, "order": "pubdate"},
             wbi=True,
         )
-        if data.get("code") != 0:
-            raise RuntimeError(f"列表接口错误: {data.get('message')}")
-        page = data["data"]["page"]
-        total = page.get("count")
-        vlist = data["data"]["list"]["vlist"]
+        if not isinstance(data, dict) or data.get("code") != 0:
+            message = data.get("message") if isinstance(data, dict) else "接口返回异常"
+            raise RuntimeError(f"列表接口错误: {message}")
+        payload = data.get("data")
+        if not isinstance(payload, dict):
+            raise TypeError("列表接口响应数据格式异常")
+        page = payload.get("page")
+        if not isinstance(page, dict):
+            raise TypeError("列表接口分页数据格式异常")
+        total = _to_int(page.get("count"))
+        video_data = payload.get("list")
+        if not isinstance(video_data, dict):
+            raise TypeError("列表接口投稿列表格式异常")
+        vlist = video_data.get("vlist")
+        if not isinstance(vlist, list):
+            raise TypeError("列表接口投稿数据格式异常")
         if not vlist:
             break
         for v in vlist:
+            if not isinstance(v, dict):
+                raise TypeError("列表接口投稿条目格式异常")
             items.append({
                 "bvid": v["bvid"],
                 "title": v["title"],

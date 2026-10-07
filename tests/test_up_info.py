@@ -81,6 +81,14 @@ def test_raises_when_data_is_null():
     assert session.calls == 1
 
 
+@pytest.mark.parametrize("response", [None, [], "invalid"])
+def test_raises_on_non_object_api_response(response):
+    session = FakeSession(response)
+    with pytest.raises(RuntimeError, match="UP 主信息接口错误: 接口返回异常"):
+        get_up_info(session, UID)
+    assert session.calls == 1
+
+
 def test_normalized_fans_survives_the_report_stage():
     """The regression from the issue: a string fan count broke `_fmt_num`."""
     from src.stats import format_report

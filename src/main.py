@@ -31,8 +31,8 @@ def extract_uid(raw: str) -> str:
     text = str(raw).strip()
     if text.isdigit():
         return text
-    # 只认空间主页，忽略末尾的 query / 锚点
-    m = re.match(r"^https?://space\.bilibili\.com/(\d+)(?:[/?#]|$)", text)
+    # 只认空间主页，忽略末尾的 query / 锚点；同时兼容大小写和常见空白
+    m = re.match(r"^https?://space\.bilibili\.com/(\d+)(?:[/?#]|$)", text, re.IGNORECASE)
     if m:
         return m.group(1)
     raise ValueError(
