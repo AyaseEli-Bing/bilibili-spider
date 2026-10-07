@@ -20,11 +20,26 @@ from .utils import BiliSession
 
 
 def extract_uid(raw: str) -> str:
-    m = re.search(r"(\d+)", str(raw))
-    if not m:
-        print("错误：无法从输入中解析出 UID，请提供纯数字 UID 或主页链接")
-        sys.exit(1)
-    return m.group(1)
+    """从用户输入中解析 UP 主 UID。
+
+    只接受纯数字 UID，或 space.bilibili.com/<uid> 形式的空间主页链接。
+    视频链接（bilibili.com/video/BV...）一律判为无效——旧实现用
+    re.search(r"(\\d+)") 取首段数字，会把 BV1xx411c7M0 解析成 UID "1"。
+
+    无效输入抛 ValueError，由调用方决定退出码与提示文案。
+    """
+    text = str(raw).strip()
+    if text.isdigit():
+        return text
+    # 只认空间主页，忽略末尾的 query / 锚点
+    m = re.match(r"^https?://space\.bilibili\.com/(\d+)(?:[/?#]|$)", text)
+    if m:
+        return m.group(1)
+    raise ValueError(
+        "请提供 UP 主 UID（纯数字）或空间主页链接"
+        "（如 https://space.bilibili.com/123456），"
+        "不要提供视频链接"
+    )
 
 
 ABOUT_TEXT = f"""Bilibili Spider v{VERSION}
@@ -69,7 +84,11 @@ def main(argv=None) -> int:
     interactive_mode = not uid_input
     if interactive_mode:
         uid_input = input("请输入 UP 主 UID 或主页链接: ").strip()
-    uid = extract_uid(uid_input)
+    try:
+        uid = extract_uid(uid_input)
+    except ValueError as e:
+        print(f"错误：{e}")
+        return 1
 
     # 数量：命令行 --limit 优先；交互模式下未指定则询问
     limit = args.limit
