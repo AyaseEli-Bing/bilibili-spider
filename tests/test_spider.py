@@ -129,3 +129,20 @@ def test_propagates_existing_api_error(after_first_page, capsys):
 
     assert len(session.calls) == len(responses)
     assert "警告：声明" not in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        {"code": 0, "data": None},
+        {"code": 0, "data": {"page": {"count": 1}, "list": None}},
+        {"code": 0, "data": {"page": {"count": 1}, "list": {"vlist": None}}},
+    ],
+    ids=["missing-data", "missing-list", "missing-vlist"],
+)
+def test_rejects_malformed_success_response(response):
+    session = FakeSession([response])
+    with pytest.raises(TypeError, match="列表接口.*格式异常"):
+        get_video_list(session, "fixture-up")
+
+    assert len(session.calls) == 1

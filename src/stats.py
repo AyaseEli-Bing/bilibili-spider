@@ -4,8 +4,18 @@ from __future__ import annotations
 from collections import Counter
 
 
+def _as_int(value, default: int = 0) -> int:
+    if isinstance(value, bool):
+        return default
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return default
+    return number if number >= 0 else default
+
+
 def _sec_to_str(sec: int) -> str:
-    sec = int(sec)
+    sec = _as_int(sec)
     h, rem = divmod(sec, 3600)
     m, s = divmod(rem, 60)
     if h:
@@ -15,6 +25,7 @@ def _sec_to_str(sec: int) -> str:
 
 def _fmt_num(n: int) -> str:
     """大数字格式化：123456 -> 12.35万。"""
+    n = _as_int(n)
     if n >= 100_000_000:
         return f"{n / 100_000_000:.2f} 亿"
     if n >= 10_000:
@@ -27,14 +38,14 @@ def summarize(rows: list[dict]) -> dict[str, str]:
     n = len(rows)
     if n == 0:
         return {}
-    plays = sum(int(r.get("播放", 0)) for r in rows)
-    likes = sum(int(r.get("点赞", 0)) for r in rows)
-    coins = sum(int(r.get("投币", 0)) for r in rows)
-    favs = sum(int(r.get("收藏", 0)) for r in rows)
-    danmaku = sum(int(r.get("弹幕", 0)) for r in rows)
-    replies = sum(int(r.get("评论", 0)) for r in rows)
-    shares = sum(int(r.get("分享", 0)) for r in rows)
-    duration = sum(int(r.get("_duration", 0)) for r in rows)
+    plays = sum(_as_int(r.get("播放", 0)) for r in rows)
+    likes = sum(_as_int(r.get("点赞", 0)) for r in rows)
+    coins = sum(_as_int(r.get("投币", 0)) for r in rows)
+    favs = sum(_as_int(r.get("收藏", 0)) for r in rows)
+    danmaku = sum(_as_int(r.get("弹幕", 0)) for r in rows)
+    replies = sum(_as_int(r.get("评论", 0)) for r in rows)
+    shares = sum(_as_int(r.get("分享", 0)) for r in rows)
+    duration = sum(_as_int(r.get("_duration", 0)) for r in rows)
     return {
         "视频总数": str(n),
         "总播放量": _fmt_num(plays),
@@ -55,7 +66,7 @@ def duration_distribution(rows: list[dict]) -> list[tuple[str, int]]:
     buckets = {"1 分钟以内": 0, "1 - 5 分钟": 0, "5 - 10 分钟": 0,
                "10 - 30 分钟": 0, "30 分钟以上": 0}
     for r in rows:
-        d = int(r.get("_duration", 0))
+        d = _as_int(r.get("_duration", 0))
         if d < 60:
             buckets["1 分钟以内"] += 1
         elif d < 300:

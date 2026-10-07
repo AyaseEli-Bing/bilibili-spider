@@ -21,9 +21,10 @@ from src.main import extract_uid
         "https://space.bilibili.com/123456/",
         "https://space.bilibili.com/123456?spm_id_from=333.1",
         "https://space.bilibili.com/123456#video",
+        "HTTPS://SPACE.BILIBILI.COM/123456",
     ],
     ids=["digits", "digits-padded", "space-https", "space-http", "space-trailing-slash",
-         "space-with-query", "space-with-fragment"],
+         "space-with-query", "space-with-fragment", "space-uppercase"],
 )
 def test_accepts_plain_uid_and_space_profile_links(raw):
     assert extract_uid(raw) == "123456"
