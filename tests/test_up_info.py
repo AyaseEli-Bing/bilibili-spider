@@ -81,6 +81,15 @@ def test_raises_when_data_is_null():
     assert session.calls == 1
 
 
+def test_error_message_names_the_api_code_when_data_is_null():
+    """Offline stub of `{"code": -403, "data": null}`: no crash, and the error says which code failed."""
+    session = FakeSession({"code": -403, "data": None})
+    with pytest.raises(RuntimeError) as excinfo:
+        get_up_info(session, UID)
+    assert "code=-403" in str(excinfo.value), str(excinfo.value)
+    assert session.calls == 1
+
+
 @pytest.mark.parametrize("response", [None, [], "invalid"])
 def test_raises_on_non_object_api_response(response):
     session = FakeSession(response)

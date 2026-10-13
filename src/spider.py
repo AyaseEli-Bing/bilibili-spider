@@ -49,7 +49,8 @@ def get_up_info(session: BiliSession, uid: str) -> dict:
     )
     if not isinstance(data, dict) or data.get("code") != 0:
         message = data.get("message") if isinstance(data, dict) else "接口返回异常"
-        raise RuntimeError(f"UP 主信息接口错误: {message}")
+        code = data.get("code") if isinstance(data, dict) else None
+        raise RuntimeError(f"UP 主信息接口错误: {message} (code={code})")
     payload = data.get("data")
     if not isinstance(payload, dict):
         payload = {}
