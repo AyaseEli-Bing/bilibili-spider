@@ -68,33 +68,70 @@ def test_falls_back_to_uid_when_card_omits_the_name():
 def test_raises_instead_of_reporting_zero_fans_on_api_error(code, message):
     """A failed overview must not look like an UP主 with zero followers."""
     session = FakeSession({"code": code, "message": message, "data": {}})
-    with pytest.raises(RuntimeError, match=f"UP 主信息接口错误: {message}"):
+    with pytest.raises(RuntimeError, match=f"UP 主信息接口错误: {message}") as excinfo:
         get_up_info(session, UID)
+    assert f"code={code}" in str(excinfo.value)
     assert session.calls == 1
 
 
 def test_raises_when_data_is_null():
     """`data` present but null: previously an AttributeError from `.get`."""
     session = FakeSession({"code": -101, "message": "账号未登录", "data": None})
-    with pytest.raises(RuntimeError, match="UP 主信息接口错误: 账号未登录"):
+    with pytest.raises(RuntimeError, match="UP 主信息接口错误: 账号未登录") as excinfo:
         get_up_info(session, UID)
+    assert "code=-101" in str(excinfo.value)
     assert session.calls == 1
 
 
-def test_error_message_names_the_api_code_when_data_is_null():
-    """Offline stub of `{"code": -403, "data": null}`: no crash, and the error says which code failed."""
+def test_error_message_includes_api_code():
+    """Offline stub: non-zero code with message names the code in the error."""
+    session = FakeSession({"code": -403, "message": "访问权限不足", "data": None})
+    with pytest.raises(RuntimeError) as excinfo:
+        get_up_info(session, UID)
+    message = str(excinfo.value)
+    assert "UP 主信息接口错误: 访问权限不足" in message
+    assert "code=-403" in message
+    assert session.calls == 1
+
+
+def test_error_message_fallbacks_when_message_is_missing():
+    """A dict with non-zero code but no message falls back to a generic label."""
     session = FakeSession({"code": -403, "data": None})
     with pytest.raises(RuntimeError) as excinfo:
         get_up_info(session, UID)
-    assert "code=-403" in str(excinfo.value), str(excinfo.value)
+    message = str(excinfo.value)
+    assert "UP 主信息接口错误: 接口返回异常" in message
+    assert "code=-403" in message
+    assert session.calls == 1
+
+
+def test_rejects_bool_false_code():
+    """A JSON boolean false must not be treated as success code 0."""
+    session = FakeSession({"code": False, "data": None})
+    with pytest.raises(RuntimeError, match="UP 主信息接口错误:") as excinfo:
+        get_up_info(session, UID)
+    assert "code=False" in str(excinfo.value)
+    assert session.calls == 1
+
+
+def test_rejects_infinity_fans():
+    """Infinity fans must not crash the run."""
+    import math
+    session = FakeSession({
+        "code": 0,
+        "data": {"card": {"name": "测试UP主", "fans": math.inf}},
+    })
+    info = get_up_info(session, UID)
+    assert info["fans"] == 0
     assert session.calls == 1
 
 
 @pytest.mark.parametrize("response", [None, [], "invalid"])
 def test_raises_on_non_object_api_response(response):
     session = FakeSession(response)
-    with pytest.raises(RuntimeError, match="UP 主信息接口错误: 接口返回异常"):
+    with pytest.raises(RuntimeError, match="UP 主信息接口错误: 接口返回异常") as excinfo:
         get_up_info(session, UID)
+    assert "code=" not in str(excinfo.value)
     assert session.calls == 1
 
 
