@@ -37,9 +37,31 @@ def _to_int(value, default: int = 0) -> int:
         return default
     try:
         number = int(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return default
     return number if number >= 0 else default
+
+
+def _check_envelope(data, label: str) -> dict:
+    """Validate a Bilibili API envelope and return its payload dict.
+
+    Rejects non-dict responses, missing/non-integer/bool codes, and non-zero
+    codes, raising a RuntimeError that includes the numeric code. Missing
+    or null messages fall back to a generic label so the user never sees the
+    literal string "None".
+    """
+    if not isinstance(data, dict):
+        raise RuntimeError(f"{label}: 接口返回异常")
+
+    code = data.get("code")
+    if not isinstance(code, int) or isinstance(code, bool) or code != 0:
+        message = data.get("message") or "接口返回异常"
+        raise RuntimeError(f"{label}: {message} (code={code!r})")
+
+    payload = data.get("data")
+    if not isinstance(payload, dict):
+        payload = {}
+    return payload
 
 
 def get_up_info(session: BiliSession, uid: str) -> dict:
@@ -47,12 +69,7 @@ def get_up_info(session: BiliSession, uid: str) -> dict:
     data = session.request_json(
         "https://api.bilibili.com/x/web-interface/card", params={"mid": uid}
     )
-    if not isinstance(data, dict) or data.get("code") != 0:
-        message = data.get("message") if isinstance(data, dict) else "接口返回异常"
-        raise RuntimeError(f"UP 主信息接口错误: {message}")
-    payload = data.get("data")
-    if not isinstance(payload, dict):
-        payload = {}
+    payload = _check_envelope(data, "UP 主信息接口错误")
     card = payload.get("card")
     if not isinstance(card, dict):
         card = {}
@@ -74,10 +91,7 @@ def get_video_list(session: BiliSession, uid: str) -> list[dict]:
             params={"mid": uid, "pn": pn, "ps": ps, "order": "pubdate"},
             wbi=True,
         )
-        if not isinstance(data, dict) or data.get("code") != 0:
-            message = data.get("message") if isinstance(data, dict) else "接口返回异常"
-            raise RuntimeError(f"列表接口错误: {message}")
-        payload = data.get("data")
+        payload = _check_envelope(data, "列表接口错误")
         if not isinstance(payload, dict):
             raise TypeError("列表接口响应数据格式异常")
         page = payload.get("page")
@@ -113,16 +127,14 @@ def get_video_list(session: BiliSession, uid: str) -> list[dict]:
 def get_video_detail(session: BiliSession, bvid: str, up_name: str) -> dict:
     """抓取单个视频的完整元数据。"""
     data = session.request_json(API_VIEW, params={"bvid": bvid})
-    if data.get("code") != 0:
-        raise RuntimeError(f"视频 {bvid} 详情错误: {data.get('message')}")
-    d = data["data"]
-    stat = d.get("stat", {})
+    payload = _check_envelope(data, f"视频 {bvid} 详情错误")
+    stat = payload.get("stat", {})
     return {
-        "BV号": d["bvid"],
-        "标题": d["title"],
-        "UP主": d.get("owner", {}).get("name", up_name),
-        "发布时间": _fmt_ts(d.get("pubdate")),
-        "时长": _fmt_duration(d.get("duration")),
+        "BV号": payload["bvid"],
+        "标题": payload["title"],
+        "UP主": payload.get("owner", {}).get("name", up_name),
+        "发布时间": _fmt_ts(payload.get("pubdate")),
+        "时长": _fmt_duration(payload.get("duration")),
         "播放": stat.get("view", 0),
         "弹幕": stat.get("danmaku", 0),
         "点赞": stat.get("like", 0),
@@ -130,7 +142,7 @@ def get_video_detail(session: BiliSession, bvid: str, up_name: str) -> dict:
         "收藏": stat.get("favorite", 0),
         "分享": stat.get("share", 0),
         "评论": stat.get("reply", 0),
-        "视频链接": f"https://www.bilibili.com/video/{d['bvid']}",
+        "视频链接": f"https://www.bilibili.com/video/{payload['bvid']}",
         # 内部字段（不写入表格，供统计使用）
-        "_duration": d.get("duration", 0),
+        "_duration": payload.get("duration", 0),
     }
